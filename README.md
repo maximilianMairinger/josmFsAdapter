@@ -15,7 +15,7 @@ From a default (or init) value. This creates a Data or DataBase instance. Any ma
 ```ts
 import josmFsAdapter from "josm-fs-adapter"
 
-const data = josmFsAdapter("myFilePath.json", "initValue")
+const data = await josmFsAdapter("myFilePath.json", "initValue")
 
 data.get() // first execution: "initValue"; second execution: "changedValue"
 
@@ -25,7 +25,7 @@ data.set("changedValue")
 This works analog for DataBases.
 
 ```ts
-const dataBase = josmFsAdapter("myFilePath.json", { key: "initValue" })
+const dataBase = await josmFsAdapter("myFilePath.json", { key: "initValue" })
 
 dataBase() // first execution: { key: "initValue" }; second execution: { key: "initValue", key2: "changedValue" }
 
@@ -40,6 +40,27 @@ When you have a given Data or DataBase instance, that you want to reflect in a f
 import { Data } from "josm"
 
 const data = new Data("initValue")
+
+const fileValue = await josmFsAdapter("myFilePath.json", data) // first execution: "initValue"; second execution: "changedValue"
+
+data.get() // "initValue" no matter what is stored in file
+
+data.set("changedValue")
+```
+
+This works analog for DataBases.
+
+```ts
+import { DataBase } from "josm"
+
+const dataBase = new DataBase({ key: "initValue" })
+
+const fileValue = await josmFsAdapter("myFilePath.json", dataBase) // first execution: { key: "initValue" }; second execution: { key: "initValue", key2: "changedValue" }
+
+dataBase() // { key: "initValue" } no matter what is stored in file
+
+dataBase({ key2: "changedValue" })
+```
 
 
 ## Contribute
