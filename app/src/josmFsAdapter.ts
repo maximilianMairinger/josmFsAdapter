@@ -1,19 +1,21 @@
 import { Data, DataBase, instanceTypeSym } from "josm"
-import { promises as fs } from "fs"
+import { mkdir, promises as fs } from "fs"
 import path from "path"
 import { stringify, parse } from "circ-json"
+import mkdirp from "mkdirp"
 
 
-const exists = async (filename: string) => !!(await fs.stat(filename).catch(() => false).then(() => true))
+const exists = (filename: string) => fs.stat(filename).then(() => true).catch(() => false)
 
+export async function josmFsAdapter<DB extends Data<T> | DataBase<T>, T>(fsPath: string, dataOrDb: DB): Promise<DB extends Data<infer R> ? R : DB extends DataBase<infer R> ? R : never>
 export async function josmFsAdapter<T>(fsPath: string, initValue: T): Promise<T extends object ? DataBase<T> : Data<T>>
-export async function josmFsAdapter<DB extends Data<T> | DataBase<T>, T>(fsPath: string, dataOrDb: DB): Promise<T>
 export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknown> | DataBase<any>): Promise<any> {
   let dataOrDb: Data<unknown> | DataBase<any>
   let ret: any
 
+  const waitTillPath = mkdirp(path.dirname(fsPath))
 
-  const fileExists = exists(fsPath)
+  const fileExists = await exists(fsPath)
   if (fileExists && (await fs.stat(fsPath)).isDirectory()) {
     new Error("josmFsAdapter: fsPath is a directory")
   }
@@ -23,13 +25,15 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   let proms: Promise<any>[] = []
 
   if (dbOrDataOrInits[instanceTypeSym] === undefined) {
+    let rawData: string
     try {
-      initData = parse(await fs.readFile(fsPath, "utf8"))
+      initData = parse(rawData = await fs.readFile(fsPath, "utf8"))
     }
     catch(e) {
-      if (fileExists) new Error("josmFsAdapter: fsPath exists, but is not a valid json")
+      if (fileExists) if (rawData !== "") new Error("josmFsAdapter: fsPath exists, but is not a valid json")
       initData = dbOrDataOrInits
-      proms.push(fs.writeFile(fsPath, stringify(initData), "utf8"))
+      await waitTillPath
+      proms.push(writeToDisk(initData))
     }
 
     if (typeof dbOrDataOrInits !== typeof initData) throw new Error(`josmFsAdapter: data on disk (typeof ${typeof initData}) is not the same type as init data (typeof ${typeof dbOrDataOrInits})`)
@@ -40,12 +44,13 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     dataOrDb = dbOrDataOrInits
     let unableToRead = false
 
+    let rawData: string
     try {
-      initData = parse(await fs.readFile(fsPath, "utf8"))
+      initData = parse(rawData = await fs.readFile(fsPath, "utf8"))
     }
     catch(e) {
-      if (fileExists) new Error("josmFsAdapter: fsPath exists, but is not a valid json")
       unableToRead = true
+      if (fileExists) if (rawData !== "") new Error("josmFsAdapter: fsPath exists, but is not a valid json")
     }
     
     if (!unableToRead) {
@@ -54,15 +59,13 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     }
     else {
       let writeData: any
-      if (dataOrDb[instanceTypeSym] !== "DataBase") writeData = (dataOrDb as DataBase<any>)()
+      if (dataOrDb[instanceTypeSym] === "DataBase") writeData = (dataOrDb as DataBase<any>)()
       else writeData = (dataOrDb as Data<any>).get()
 
-      proms.push(fs.writeFile(fsPath, stringify(writeData), "utf8"))
+      await waitTillPath
+      proms.push(writeToDisk(writeData))
     }
 
-    
-    await Promise.all(proms)
-    
     ret = initData
   }
   
@@ -70,8 +73,12 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   // write to disk
 
   async function writeToDisk(data: any) {
-    await fs.writeFile(fsPath, stringify(data), "utf8")
+    if (data === undefined) await fs.writeFile(fsPath, "", "utf8")
+    else await fs.writeFile(fsPath, stringify(data), "utf8")
   }
+
+  
+  await waitTillPath
 
   if (dataOrDb instanceof Data) {
     dataOrDb.get(writeToDisk, false)
@@ -79,6 +86,8 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   else {
     dataOrDb(writeToDisk, false)
   }
+
+  await Promise.all(proms)
 
   return ret
 }

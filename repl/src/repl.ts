@@ -4,13 +4,18 @@ import { Data } from "josm"
 
 console.log("start")
 
-const e = new Data()
 
-const init = josmFsAdapter("test.js", e)
+let d = new Data(3)
+const init = josmFsAdapter("test3.js", d).then((e) => {
+  console.log(e)
+  d.set(e)
+
+})
 
 
-console.log(e.get(), init)
 
-setInterval(() => {
-  e.set(+new Date())
-}, 1000)
+// console.log(e.get(), init)
+
+// setInterval(() => {
+//   e.set(+new Date())
+// }, 1000)
