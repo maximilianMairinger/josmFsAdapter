@@ -1,10 +1,16 @@
 import josmFsAdapter from "../../app/src/josmFsAdapter"
 //const testElem = document.querySelector("#test")
+import { Data } from "josm"
 
 console.log("start")
 
-const e = josmFsAdapter("test.js", {lel: 2})
+const e = new Data()
+
+const init = josmFsAdapter("test.js", e)
+
+
+console.log(e.get(), init)
 
 setInterval(() => {
-  e({lol: +new Date()})
+  e.set(+new Date())
 }, 1000)
