@@ -2,14 +2,14 @@
   "name": "josm-fs-adapter",
   "version": "1.0.1",
   "description": "Josm adapter for FileSystem storage.",
-  "main": "./app/dist/esm/josmFsAdapter.js",
+  "main": "./app/dist/esm/josmFsAdapter.mjs",
   "types": "./app/dist/esm/josmFsAdapter.d.ts",
   "exports": {
     "node": {
-      "import": "./app/dist/esm/josmFsAdapter.js",
+      "import": "./app/dist/esm/josmFsAdapter.mjs",
       "require": "./app/dist/cjs/josmFsAdapter.js"
     },
-    "default": "./app/dist/esm/josmFsAdapter.js"
+    "default": "./app/dist/esm/josmFsAdapter.mjs"
   },
   "scripts": {
     "build": "del-cli app/dist && rollup --config rollup.prod.config.js && renamer --find /\\.js$/i --replace .mjs app/dist/esm/**",
