@@ -8,8 +8,9 @@ import mkdirp from "mkdirp"
 const exists = (filename: string) => fs.stat(filename).then(() => true).catch(() => false)
 
 export async function josmFsAdapter<DB extends Data<T> | DataBase<T>, T>(fsPath: string, dataOrDb: DB): Promise<DB extends Data<infer R> ? R : DB extends DataBase<infer R> ? R : never>
+export async function josmFsAdapter<T>(fsPath: string, initValue: () => T): Promise<T extends object ? DataBase<T> : Data<T>>
 export async function josmFsAdapter<T>(fsPath: string, initValue: T): Promise<T extends object ? DataBase<T> : Data<T>>
-export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknown> | DataBase<any>): Promise<any> {
+export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknown> | DataBase<any> | unknown | (() => unknown)): Promise<any> {
   let dataOrDb: Data<unknown> | DataBase<any>
   let ret: any
 
@@ -31,7 +32,7 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     }
     catch(e) {
       if (fileExists) if (rawData !== "") new Error("josmFsAdapter: fsPath exists, but is not a valid json")
-      initData = dbOrDataOrInits
+      initData = dbOrDataOrInits instanceof Function ? dbOrDataOrInits() : dbOrDataOrInits
       await waitTillPath
       proms.push(writeToDisk(initData))
     }
@@ -41,7 +42,7 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     ret = dataOrDb = typeof initData === "object" ? new DataBase(initData) : new Data(initData)
   }
   else {
-    dataOrDb = dbOrDataOrInits
+    dataOrDb = dbOrDataOrInits as Data<unknown> | DataBase<any>
     let unableToRead = false
 
     let rawData: string
