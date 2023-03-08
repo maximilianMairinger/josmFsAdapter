@@ -56,8 +56,16 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     }
     
     if (!unableToRead) {
+      console.log("able to read")
       if (typeof initData === "object") if (dataOrDb[instanceTypeSym] !== "DataBase") throw new Error("josmFsAdapter: data on disk is an object, but given is a Data instance")
       if (typeof initData !== "object") if (dataOrDb[instanceTypeSym] !== "Data") throw new Error("josmFsAdapter: data on disk is not an object, but given is a DataBase instance")
+
+      if (dataOrDb[instanceTypeSym] === "DataBase") {
+        (dataOrDb as DataBase<any>)(initData)
+      }
+      else {
+        (dataOrDb as Data<any>).set(initData)
+      }
     }
     else {
       let writeData: any
@@ -66,7 +74,6 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
 
       await waitTillPath
       proms.push(writeToDisk(writeData))
-      console.log("initData", writeData)
       initData = writeData
     }
 
@@ -77,6 +84,7 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   // write to disk
 
   async function writeToDisk(data: any) {
+    debugger
     if (data === undefined) await fs.writeFile(fsPath, "", "utf8")
     else await fs.writeFile(fsPath, stringify(data), "utf8")
   }
@@ -88,7 +96,7 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     dataOrDb.get(writeToDisk, false)
   }
   else {
-    dataOrDb(writeToDisk, false)
+    dataOrDb(writeToDisk, true, false)
   }
 
   await Promise.all(proms)

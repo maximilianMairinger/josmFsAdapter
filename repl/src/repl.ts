@@ -9,7 +9,7 @@ let d = new DataBase({lel: 2})
 const init = josmFsAdapter("test3.json", d).then((e) => {
   console.log("log", e)
   
-
+  d({lel: "lelel"})
 })
 
 
