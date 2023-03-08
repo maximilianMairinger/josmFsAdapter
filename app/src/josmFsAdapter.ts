@@ -3,6 +3,7 @@ import { mkdir, promises as fs } from "fs"
 import path from "path"
 import { stringify, parse } from "circ-json"
 import mkdirp from "mkdirp"
+import clone from "circ-clone"
 
 
 const exists = (filename: string) => fs.stat(filename).then(() => true).catch(() => false)
@@ -60,11 +61,13 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
     }
     else {
       let writeData: any
-      if (dataOrDb[instanceTypeSym] === "DataBase") writeData = (dataOrDb as DataBase<any>)()
+      if (dataOrDb[instanceTypeSym] === "DataBase") writeData = clone((dataOrDb as DataBase<any>)())
       else writeData = (dataOrDb as Data<any>).get()
 
       await waitTillPath
       proms.push(writeToDisk(writeData))
+      console.log("initData", writeData)
+      initData = writeData
     }
 
     ret = initData

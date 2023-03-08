@@ -55,6 +55,7 @@
     "webpack-merge": "^5.0.9"
   },
   "dependencies": {
+    "circ-clone": "^1.0.0",
     "circ-json": "^1.0.0",
     "josm": "^1.7.33",
     "mkdirp": "^2.1.3"
