@@ -9,10 +9,10 @@ export default {
   output: {
     file: 'app/dist/cjs/josmFsAdapter.js',
     format: 'cjs',
-    sourcemap: true
+    sourcemap: false
   },
   plugins: [
-    typescript({tsconfig: "./tsconfig.cjs.json", noEmitOnError: false, sourceMap: true}), 
+    typescript({tsconfig: "./tsconfig.cjs.json", noEmitOnError: false, sourceMap: false}), 
     resolve({modulesOnly: true, preferBuiltins: true}),
     commonJS({
       include: 'node_modules/**'
