@@ -84,7 +84,6 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   // write to disk
 
   async function writeToDisk(data: any) {
-    debugger
     if (data === undefined) await fs.writeFile(fsPath, "", "utf8")
     else await fs.writeFile(fsPath, stringify(data), "utf8")
   }
