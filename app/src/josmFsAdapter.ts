@@ -1,6 +1,6 @@
 import { Data, DataBase, instanceTypeSym } from "josm"
 import { mkdir, promises as fs } from "fs"
-import path from "path"
+import * as path from "path"
 import { stringify, parse } from "circ-json"
 import mkdirp from "mkdirp"
 import clone from "circ-clone"
