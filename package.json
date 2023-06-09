@@ -1,6 +1,6 @@
 {
   "name": "josm-fs-adapter",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Josm adapter for FileSystem storage.",
   "main": "./app/dist/esm/josmFsAdapter.mjs",
   "types": "./app/dist/esm/josmFsAdapter.d.ts",
