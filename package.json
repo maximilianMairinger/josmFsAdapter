@@ -65,6 +65,7 @@
     "circ-json": "^1.0.0",
     "colorful-cli-logger": "^1.0.0",
     "josm": "^1.7.35",
+    "key-index": "^1.4.14",
     "mkdirp": "^2.1.3"
   }
 }

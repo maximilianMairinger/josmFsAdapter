@@ -4,15 +4,54 @@ import * as path from "path"
 import { stringify, parse } from "circ-json"
 import mkdirp from "mkdirp"
 import clone from "circ-clone"
+import { memoize } from "key-index"
 
 
 const exists = (filename: string) => fs.stat(filename).then(() => true).catch(() => false)
 
+type Prim = boolean | string | number | null | undefined
+type Wrapped<Prim> = Prim | (() => Prim | Promise<Prim>) | Promise<Prim>
+type PrimOrObWrapped = Wrapped<Prim> | Wrapped<{[key in string | number]: PrimOrObWrapped}>
+
+
+
+type MaybeWrapped<T> = PromiseUnwrap<FunctionUnwrap<T>>
+type FunctionUnwrap<T> = T extends (...any: any) => infer R ? R : T
+type PromiseUnwrap<T> = T extends Promise<infer R> ? R : T
+
+type DefaultVal<T, Unwrapped extends MaybeWrapped<T> = MaybeWrapped<T>> = Unwrapped extends {[key in string | number]: any} ? {[key in keyof Unwrapped]: DefaultVal<Unwrapped[key]>} :Unwrapped
+
+
+
+async function crawlCyclicAndCallFunc(ob: unknown) {
+  const store = new Map()
+  async function crawlCyclicAndCallFuncRec(ob: unknown) {
+    if (store.has(ob)) return store.get(ob)
+    const ogOb = ob
+    if (typeof ob === "function") {
+      ob = ob()
+      store.set(ogOb, ob)
+    }
+    ob = await ob
+    if (typeof ob === "object") {
+      const ret = Object.create(null)
+      store.set(ogOb, ret)
+      for (let key in ob) {
+        if (key === "__proto__") continue
+        ret[key] = await crawlCyclicAndCallFuncRec(ob[key])
+      }
+      return ret
+    }
+    return ob
+  }
+  return crawlCyclicAndCallFuncRec(ob)
+}
+
+
+
+
 export async function josmFsAdapter<DB extends Data<T> | DataBase<T>, T>(fsPath: string, dataOrDb: DB): Promise<DB extends Data<infer R> ? R : DB extends DataBase<infer R> ? R : never>
-export async function josmFsAdapter<T>(fsPath: string, initValue: () => Promise<T>): Promise<T extends object ? DataBase<T> : Data<T>>
-export async function josmFsAdapter<T>(fsPath: string, initValue: () => T): Promise<T extends object ? DataBase<T> : Data<T>>
-export async function josmFsAdapter<T>(fsPath: string, initValue: Promise<T>): Promise<T extends object ? DataBase<T> : Data<T>>
-export async function josmFsAdapter<T>(fsPath: string, initValue: T): Promise<T extends object ? DataBase<T> : Data<T>>
+export async function josmFsAdapter<T, Q extends DefaultVal<T> = DefaultVal<T>>(fsPath: string, initValue: T & PrimOrObWrapped): Promise<Q extends object ? DataBase<T> : Data<T>>
 export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknown> | DataBase<any> | unknown | Promise<unknown> | (() => (unknown | Promise<unknown>))): Promise<any> {
   let dataOrDb: Data<unknown> | DataBase<any>
   let ret: any
@@ -30,19 +69,22 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
 
   if (dbOrDataOrInits[instanceTypeSym] === undefined) {
 
-    let givenDefaultVal = dbOrDataOrInits instanceof Function ? dbOrDataOrInits() : dbOrDataOrInits
+    let givenDefaultVal = memoize(() => crawlCyclicAndCallFunc(dbOrDataOrInits))
+
     let rawData: string
     try {
-      initData = parse(rawData = await fs.readFile(fsPath, "utf8"))
+      const rawDataProm = fs.readFile(fsPath, "utf8")
+      givenDefaultVal()
+      initData = parse(rawData = await rawDataProm)
     }
     catch(e) {
       if (fileExists) if (rawData !== "") new Error("josmFsAdapter: fsPath exists, but is not a valid json")
-      initData = await givenDefaultVal
+      initData = await givenDefaultVal()
       await waitTillPath
       proms.push(writeToDisk(initData))
     }
 
-    givenDefaultVal = await givenDefaultVal
+    givenDefaultVal = await givenDefaultVal()
 
     if (typeof givenDefaultVal !== typeof initData) throw new Error(`josmFsAdapter: data on disk (typeof ${typeof initData}) is not the same type as init data (typeof ${typeof dbOrDataOrInits})`)
 
