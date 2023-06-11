@@ -59,7 +59,7 @@ async function crawlCyclicAndCallFunc(ob: unknown, whereNeeded: unknown) {
 
 
 export async function josmFsAdapter<DB extends Data<T> | DataBase<T>, T>(fsPath: string, dataOrDb: DB): Promise<DB extends Data<infer R> ? R : DB extends DataBase<infer R> ? R : never>
-export async function josmFsAdapter<T, Q extends DefaultVal<T> = DefaultVal<T>>(fsPath: string, initValue: T & PrimOrObWrapped): Promise<Q extends object ? DataBase<T> : Data<T>>
+export async function josmFsAdapter<T, Q extends DefaultVal<T> = DefaultVal<T>>(fsPath: string, initValue: T & PrimOrObWrapped): Promise<Q extends object ? DataBase<Q> : Data<Q>>
 export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknown> | DataBase<any> | unknown | Promise<unknown> | (() => (unknown | Promise<unknown>))): Promise<any> {
   let dataOrDb: Data<unknown> | DataBase<any>
   let ret: any
