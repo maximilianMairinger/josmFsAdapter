@@ -23,9 +23,14 @@ type DefaultVal<T, Unwrapped extends MaybeWrapped<T> = MaybeWrapped<T>> = Unwrap
 
 
 
-async function crawlCyclicAndCallFunc(ob: unknown) {
+async function crawlCyclicAndCallFunc(ob: unknown, whereNeeded: unknown) {
   const store = new Map()
-  async function crawlCyclicAndCallFuncRec(ob: unknown) {
+  async function crawlCyclicAndCallFuncRec(ob: unknown, whereNeeded: unknown, path: string[]) {
+    if (whereNeeded !== undefined && typeof whereNeeded !== "object") {
+      if (typeof ob !== typeof whereNeeded && !(ob instanceof Promise) && !(ob instanceof Function)) throw new Error(`Type mismatch at "${path.join(".")}": ${typeof ob} (default) !== ${typeof whereNeeded} (disk)`)
+      return whereNeeded
+    }
+
     if (store.has(ob)) return store.get(ob)
     const ogOb = ob
     if (typeof ob === "function") {
@@ -36,15 +41,18 @@ async function crawlCyclicAndCallFunc(ob: unknown) {
     if (typeof ob === "object") {
       const ret = Object.create(null)
       store.set(ogOb, ret)
+      if (whereNeeded === undefined) whereNeeded = Object.create(null)
       for (let key in ob) {
         if (key === "__proto__") continue
-        ret[key] = await crawlCyclicAndCallFuncRec(ob[key])
+        ret[key] = await crawlCyclicAndCallFuncRec(ob[key], whereNeeded[key], [...path, key])
       }
       return ret
     }
+    else if (typeof whereNeeded === "object") throw new Error(`Type mismatch at "${path.join(".")}": ${typeof ob} (default) !== ${typeof whereNeeded} (disk)`)
+
     return ob
   }
-  return crawlCyclicAndCallFuncRec(ob)
+  return crawlCyclicAndCallFuncRec(ob, whereNeeded, [])
 }
 
 
@@ -69,26 +77,20 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
 
   if (dbOrDataOrInits[instanceTypeSym] === undefined) {
 
-    let givenDefaultVal = memoize(() => crawlCyclicAndCallFunc(dbOrDataOrInits))
+    let givenDefaultVal = memoize((whereNeeded) => crawlCyclicAndCallFunc(dbOrDataOrInits, whereNeeded))
 
     let rawData: string
     try {
-      const rawDataProm = fs.readFile(fsPath, "utf8")
-      givenDefaultVal()
-      initData = parse(rawData = await rawDataProm)
+      initData = parse(rawData = await fs.readFile(fsPath, "utf8"))
     }
     catch(e) {
       if (fileExists) if (rawData !== "") new Error("josmFsAdapter: fsPath exists, but is not a valid json")
-      initData = await givenDefaultVal()
-      await waitTillPath
-      proms.push(writeToDisk(initData))
+      initData = await givenDefaultVal(undefined)
     }
 
-    givenDefaultVal = await givenDefaultVal()
-
-    if (typeof givenDefaultVal !== typeof initData) throw new Error(`josmFsAdapter: data on disk (typeof ${typeof initData}) is not the same type as init data (typeof ${typeof dbOrDataOrInits})`)
-
-    ret = dataOrDb = typeof initData === "object" ? new DataBase(initData) : new Data(initData)
+    const data = await givenDefaultVal(initData)
+    proms.push(waitTillPath.then(() => writeToDisk(data)))
+    ret = dataOrDb = typeof initData === "object" ? new DataBase(data) : new Data(data)
   }
   else {
     dataOrDb = dbOrDataOrInits as Data<unknown> | DataBase<any>
@@ -120,8 +122,7 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
       if (dataOrDb[instanceTypeSym] === "DataBase") writeData = clone((dataOrDb as DataBase<any>)())
       else writeData = (dataOrDb as Data<any>).get()
 
-      await waitTillPath
-      proms.push(writeToDisk(writeData))
+      proms.push(waitTillPath.then(() => writeToDisk(writeData)))
       initData = writeData
     }
 
@@ -137,7 +138,6 @@ export async function josmFsAdapter(fsPath: string, dbOrDataOrInits: Data<unknow
   }
 
   
-  await waitTillPath
 
   if (dataOrDb instanceof Data) {
     dataOrDb.get(writeToDisk, false)

@@ -2,18 +2,20 @@ import josmFsAdapter from "../../app/src/josmFsAdapter"
 //const testElem = document.querySelector("#test")
 import { Data, DataBase } from "josm"
 import clone from "circ-clone"
+import inq from "./inq"
+
+console.log("start");
 
 
-console.log("start")
+(async () => {
+  const store = await josmFsAdapter("test.json", {
+    lel: "qew",
+    lel2: () => inq("lel2"),
+    lel3: () => inq("lel3")
+  })
 
-
-let d = new DataBase({lel: 2})
-
-const init = josmFsAdapter("test3.json", d).then((e) => {
-  console.log("log", e)
-  
-  d({lel: undefined})
-})
+  console.log("log", clone(store()))
+})()
 
 
 
