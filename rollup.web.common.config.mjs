@@ -13,7 +13,7 @@ export default {
   },
   sourcemap: true,
   plugins: [
-    typescript({tsconfig: "./tsconfig.dev.json", noEmitOnError: false, sourceMap: true}), 
+    typescript({tsconfig: "./tsconfig.json", noEmitOnError: false, sourceMap: true}), 
     resolve({browser: true}),
     commonJS({
       include: 'node_modules/**'
